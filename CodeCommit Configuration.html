@@ -2329,7 +2329,12 @@ body {
   <style>.markdown-body{}pre.front-matter{display:none!important;}</style>
 </head>
 <body>
-  <article class="markdown-body"><h2 class="atx" id="codecommit-configuration">CodeCommit Configuration</h2>
+  <article class="markdown-body"><h2 class="atx" id="security-tools">Security Tools</h2>
+<p>PHPStan</p>
+<p>A SAST tool for analyzing PHP codes.</p>
+<p>OWASP Dependency Check</p>
+<p>OWASP ZAP</p>
+<h2 class="atx" id="codecommit-configuration">CodeCommit Configuration</h2>
 <p>Step 1: Create an IAM User with AWSCodeCommitPowerUser policy.</p>
 <p><img alt="codecommit-IAM-user-permission.png" src="file:///D:/DevSecOps_Project_Documentation/Images/codecommit-IAM-user-permission.png"></p>
 <p>Step 2: Create Repositories</p>
@@ -2341,9 +2346,8 @@ body {
 <p><img alt="Vaccine-SCM-user-IAM-HTTPS-Git-Cred.png" src="file:///D:/DevSecOps_Project_Documentation/Images/Vaccine-SCM-user-IAM-HTTPS-Git-Cred.png"></p>
 <p>Step 5: Copy the username and password that IAM generated for you, either by showing, copying, and then pasting this information into a secure file on your local computer, or by choosing Download credentials to download this information as a .CSV file. You need this information to connect to CodeCommit.</p>
 <p>Step 6: Check your connection by cloning one of the repositories.</p>
-<div style="page-break-after: always; break-after: page;"></div>
-
-<h2 class="atx" id="ecrelastic-container-registry-setup">ECR(Elastic Container Registry) Setup</h2>
+<hr>
+<h2 class="atx" id="ecr-elastic-container-registry-setup">ECR (Elastic Container Registry) Setup</h2>
 <p>Step 1: Go over to ECR and create a private repository with a name of your choosing.</p>
 <p><img alt="Elastic-Container-Registry-Create-Repository.png" src="file:///D:/DevSecOps_Project_Documentation/Images/Elastic-Container-Registry-Create-Repository.png"></p>
 <p>Step 2: Next, go to Permissions&gt;Edit JSON Policy and delete the default and set the following permissions for the repository</p>
@@ -2376,13 +2380,16 @@ body {
   <span class="token punctuation">]</span>
 
 <span class="token punctuation">}</span></code></pre>
-<div style="page-break-after: always; break-after: page;"></div>
-
+<hr>
 <h2 class="atx" id="s3-bucket-configuration">S3 Bucket Configuration</h2>
 <p>Step 1: Go over to S3 and create a private bucket for the project. Check if the settings matches the following screenshots and keep the defaults for rest of the configurations.</p>
 <p><img alt="" src="file:///D:/DevSecOps_Project_Documentation/Images/S3-bucket-1.png"></p>
 <p><img alt="" src="file:///D:/DevSecOps_Project_Documentation/Images/S3-bucket-2.png"></p>
 <p><img alt="" src="file:///D:/DevSecOps_Project_Documentation/Images/S3-bucket-3.png"></p>
+<h2 class="atx" id=""></h2>
+<h2 class="atx" id="codepipeline-setup">CodePipeline Setup</h2>
+<p>The following steps will showcase the creation and configuration of a single pipeline. For our project we will create a total of 4 pipelines for each services in our Microservice application.</p>
+<p>Step 1: </p>
 <p>AWS EKS Setup</p>
 <p>Configure the following in the machine you are going to access the cluster:  </p>
 <ul>
