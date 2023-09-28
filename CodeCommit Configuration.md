@@ -177,15 +177,15 @@ aws configure
 
 **Step 6:** For configuring the aws cli you will need an Access key and Secret access key pair associated with your account. If you don't have an access key, login to your aws account and go to security credentials.
 
-![aws-security-credentials.png](assets/3f59eef1e05dc496afc4426b0fa94035f80d85aa.png)
+![aws-security-credentials.png](assets/aws-security-credentials.png)
 
-![](assets/2023-09-22-15-29-05-image.png)
+![](assets/account-access-key.png)
 
 Create an access key for aws command line interface. Download the access key after generation and save it in a safe place because the secret key can't be obtained later.
 
 **Step 7:** Use the access key and secret access kye to configure the AWS CLI. The configuration should look like the image below.
 
-![aws-cli-configuration.png](assets/24430542c24b946b9c435adea4ac180d525745c3.png)
+![aws-cli-configuration.png](assets/aws-cli-configuration.png)
 
 ## Kubectl setup
 
@@ -243,11 +243,202 @@ terraform apply -auto-approve
 aws eks update-kubeconfig --name <eks-cluster-name> --region <aws-region-name>
 ```
 
-**Step 6:** Check if the kubectl can communicate with the cluster by running the following coommand:
+**Step 6:** Check if the `kubectl` can communicate with the cluster by running the following coommand:
 
 ```bash
 kubectl cluster-info
 ```
+
+**Step 7:** We can check cluster is functioning properly by going to the `AWS Console` `>` `Elastic Kuberntetes Service` `>` `Clusters`.
+
+![vaccination-system-eks-Clusters-EKS.png](assets/vaccination-system-eks-Clusters-EKS.png)
+
+
+# PHPStan OWASP Dependency-Check & OWASP ZAP integration
+
+## PHPStan
+**Step 1:** First, go over to CodeBuild and create a project.
+
+![](assets/Build-projects-CodePipeline-ap-southeast-1.png)
+
+**Step 2:** Next, give the project a name and setup your source. We are using CodeCommit as our source for our project.
+
+![](assets/Create-build-choose-source.png)
+
+**Step 3:** Afterwards, we have to choose the runtime environment for the building process. We will use `Amazon Linux 2` as our build runtime OS. Set the environment configuration as the image below.
+
+![](assets/Create-build-project-choose-env.png)
+
+**Step 4:** Now, specify the name for the buildspec file we will be using to run the PHPStan scan inside a CodeBuild conatainer. We named the file for this project `buildspec-phpstan.yml`. See the image below for reference
+
+![](assets/Create-build-project-buildspec-name.png)
+
+The following is the content of the `buildspec-phpstan.yml` file.
+
+```yaml
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      php: 8.2
+    commands:
+      - echo "installing phpstan"
+      - composer require --dev phpstan/phpstan
+      - echo "completed installing phpstan"
+  build:
+    commands:
+      - echo "phpstan scan starting......"
+      - vendor/bin/phpstan analyse  --error-format=json --level=1 -c phpstan.neon --memory-limit=3G --xdebug > vendor/phpstan-results.json || true
+      - echo "phpstan scan completed. Analysing the results......"
+  post_build:
+    commands:
+      - phpstan_fileerrors=$(cat vendor/phpstan-results.json | jq -r '.totals.file_errors')
+      - echo "phpstan errors count is "  $phpstan_fileerrors
+      - | 
+        if [ $phpstan_fileerrors -gt 0 ]; then     
+          jq "{ \"messageType\": \"CodeScanReport\", \"reportType\": \"PHPStan\", \"createdAt\": $(date +\"%Y-%m-%dT%H:%M:%S.%3NZ\"), \"productName\": \"VMS Registration Service\", \"companyName\": \"DevSecOps\", \"source_repository\": env.CODEBUILD_SOURCE_REPO_URL, \"source_branch\": env.CODEBUILD_SOURCE_VERSION, \"build_id\": env.CODEBUILD_BUILD_ID, \"source_commitid\": env.CODEBUILD_RESOLVED_SOURCE_VERSION, \"report\": . }" vendor/phpstan-results.json > payload.json
+          echo "There are some errors/vulnerabilities reported in the phpstan scan. Stopping the build process.";
+          cat payload.json
+          aws lambda invoke --function-name ImportVulToSecurityHub --payload fileb://payload.json phpstan_scan_report.json && echo "LAMBDA_SUCCEDED" || echo "LAMBDA_FAILED";
+          cat phpstan_scan_report.json
+          echo " completed gathering the phpstan report";
+          # exit 1;
+        else
+          echo "no vulnerabilities found in phpstan scan"
+        fi     
+artifacts:
+  type: zip
+  files: 
+    - '**/*'
+```
+
+**Step 5:** Next, configure the logs for this CodeBuild project. We opted for S3 logs for our project.
+
+![](assets/Create-build-project-codebuild-logs.png)
+
+
+**Step 6:** Now all we need to do is to add the CodeBuild project to our existing pipeline. In order to do so, go over to your pipeline and add a new stage if you need and add an action group right after the Source stage.
+
+**Step 7:** Give the action a name and choose CodeBuild as the action provider.
+
+![](assets/phpstan-create-action.png)
+
+**Step 8:** Set input artifact to SourceArtifact and choose the project you created in the above steps then create the action.
+
+![](assets/phpstan-create-action-inputartifact.png)
+
+## OWASP Dependency Scan
+
+**Step 1:** Follow the PHPStan steps for creating the build project. The __*buildspec*__ file name for this build project should be set to `buildspec-dependency-check.yml`
+
+The following is the content of the `buildspec-dependency-check.yml` file
+
+```yaml
+version: 0.2
+phases:
+  install:
+    commands:
+      - echo "install phase....."
+  pre_build:
+    commands:
+      - composer install
+      - wget https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.0/dependency-check-8.4.0-release.zip
+      - unzip dependency-check-8.4.0-release.zip
+      - rm dependency-check-8.4.0-release.zip
+      - chmod -R 775 $CODEBUILD_SRC_DIR/dependency-check/bin/dependency-check.sh
+      - echo "stage pre_build completed"
+  build:
+    commands: 
+      - cd dependency-check/bin
+      - $CODEBUILD_SRC_DIR/dependency-check/bin/dependency-check.sh --format JSON --prettyPrint --enableExperimental --scan $CODEBUILD_SRC_DIR --exclude '$CODEBUILD_SRC_DIR/depedency-check/'
+      - echo "OWASP dependency check analysis status is completed..."; 
+      - high_risk_dependency=$( cat dependency-check-report.json | grep -c "HIGHEST" )
+  post_build:
+    commands:
+      - | 
+        jq "{ \"messageType\": \"CodeScanReport\", \"reportType\": \"OWASP-Dependency-Check\", \
+        \"createdAt\": $(date +\"%Y-%m-%dT%H:%M:%S.%3NZ\"), \"source_repository\": env.CODEBUILD_SOURCE_REPO_URL, \
+        \"productName\": \"VMS Registration Service\", \"companyName\": \"DevSecOps\", \
+        \"source_branch\": env.CODEBUILD_SOURCE_VERSION, \
+        \"build_id\": env.CODEBUILD_BUILD_ID, \
+        \"source_commitid\": env.CODEBUILD_RESOLVED_SOURCE_VERSION, \
+        \"report\": . }" dependency-check-report.json > payload.json
+      - |
+        if [ $high_risk_dependency -gt 0 ]; then
+          echo "there are high or medium alerts.. failing the build"
+          cat payload.json
+          aws lambda invoke --function-name ImportVulToSecurityHub --payload fileb://payload.json dependency-check-report.json && echo "LAMBDA_SUCCEDED" || echo "LAMBDA_FAILED";
+          cat dependency-check-report.json
+          # exit 1; 
+        fi
+artifacts:
+  type: zip
+  files: '**/*'
+```
+
+**Step 2:** Next Follow the same process as the PHPStan to create an action group inside your existing pipeline for integrating the build project.
+
+## OWASP ZAP (Zed Attack Proxy)
+
+**Step 1:** Create another build project just like PHPStan and dependency check. The __*buildspec*__ file name should be set to `buildspec-owasp-zap.yml` this time around.
+
+The following is what's inside the `buildspec-owasp-zap.yml`
+
+```yaml
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo Installing app dependencies and Kubectl tool for K8s...
+      - curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.18.9/2020-11-02/bin/linux/amd64/kubectl   
+      - chmod +x ./kubectl
+      - mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$PATH:$HOME/bin
+      - echo 'export PATH=$PATH:$HOME/bin' >> $HOME/.bashrc
+      - source $HOME/.bashrc
+      - echo 'Check kubectl version'
+      - kubectl version --short --client 
+  build:
+    commands:
+      - echo Logging into Amazon EKS...
+      - aws eks --region $AWS_DEFAULT_REGION update-kubeconfig --name $AWS_CLUSTER_NAME
+      - echo check config 
+      - kubectl config view --minify
+      - echo check kubectl access
+      - kubectl get svc -n vaccination-system-dev
+      - ALB_URL=$(kubectl get svc -n vaccination-system-dev -o json | jq -r ".items[].status.loadBalancer.ingress[0].hostname")
+      - echo $ALB_URL
+      - echo Starting OWASP Zed Attack Proxy active scanning...
+      - chmod 777 $PWD
+      - mkdir -p /zap/wrk
+      - chmod 777 /zap/wrk
+      - docker --version
+      - docker pull docker.io/owasp/zap2docker-stable
+      - docker run -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py -t http://$ALB_URL -J owaspresult.json || true
+  post_build:
+    commands:
+      - ls -lrt $CODEBUILD_SRC_DIR
+      - cat owaspresult.json
+      - |
+        jq "{ \"messageType\": \"CodeScanReport\", \"reportType\": \"OWASP-Zap\", \
+        \"createdAt\": $(date +\"%Y-%m-%dT%H:%M:%S.%3NZ\"), \"source_repository\": env.CODEBUILD_SOURCE_REPO_URL, \
+        \"productName\": \"VMS Registration Service\", \"companyName\": \"DevSecOps\", \
+        \"source_branch\": env.CODEBUILD_SOURCE_VERSION, \
+        \"build_id\": env.CODEBUILD_BUILD_ID, \
+        \"source_commitid\": env.CODEBUILD_RESOLVED_SOURCE_VERSION, \
+        \"report\": . }" owaspresult.json > payload.json
+        aws lambda invoke --function-name ImportVulToSecurityHub --payload fileb://payload.json owaspresult.json && echo "LAMBDA_SUCCEDED" || echo "LAMBDA_FAILED";
+
+     # - if [ $high_alerts != 0 ] || [ $medium_alerts != 0 ]; then echo "there are high or medium alerts.. failing the build" && exit 1; else exit 0; fi
+artifacts:
+  type: zip
+  files: '**/*'
+```
+
+**Step 2:** Create action group in your pipeline for this project but create it inside a stage after deployment. This scan is only for the services that have an LoadBalancer attached to it.
+
+
+
 
 AWS EKS Setup
 
