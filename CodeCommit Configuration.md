@@ -253,10 +253,10 @@ kubectl cluster-info
 
 ![vaccination-system-eks-Clusters-EKS.png](assets/vaccination-system-eks-Clusters-EKS.png)
 
-
 # PHPStan OWASP Dependency-Check & OWASP ZAP integration
 
 ## PHPStan
+
 **Step 1:** First, go over to CodeBuild and create a project.
 
 ![](assets/Build-projects-CodePipeline-ap-southeast-1.png)
@@ -315,7 +315,6 @@ artifacts:
 **Step 5:** Next, configure the logs for this CodeBuild project. We opted for S3 logs for our project.
 
 ![](assets/Create-build-project-codebuild-logs.png)
-
 
 **Step 6:** Now all we need to do is to add the CodeBuild project to our existing pipeline. In order to do so, go over to your pipeline and add a new stage if you need and add an action group right after the Source stage.
 
@@ -437,8 +436,239 @@ artifacts:
 
 **Step 2:** Create action group in your pipeline for this project but create it inside a stage after deployment. This scan is only for the services that have an LoadBalancer attached to it.
 
+## Security Scan Logs collection with AWS Lambda
+
+**Step 1:** First, create a lambda function named `ImportVulToSecurityHub`. Setting the name to the aforementioned value is crucial because inside each security tools scan buildspec file we will be invoking the function by name.
+
+![](assets/Create-function-Lambda.png)
+
+**Step 2:** Set `Python 3.9` as the runtime and `x86_64` as the architechture.
+
+![](assets/Create-function-Lambda-1.png)
 
 
+**Step 3:** Next, make sure that a new role is created along with the function
+
+![](assets/Create-function-Lambda-2.png)
+
+**Step 4:** Modify the new Lambda role and add `AmazonS3FullAccess` and `AWSSecurityHubFullAccess` policies.
+
+![](assets/Create-function-Lambda-3.png)
+
+**Step 5:** Go into the lambda function you just created and click on **Upload From** and choose **.zip file** option. 
+
+![](assets/Create-function-Lambda-4.png)
+
+This should import the codes into two files one named `lambda_function.py` and another `securityhub.py`
+
+The content of `lambda_function.py` is as follows
+
+```python
+import os
+import json
+import logging
+import boto3
+import securityhub
+from datetime import datetime, timezone
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+FINDING_TITLE = "CodeAnalysis"
+FINDING_DESCRIPTION_TEMPLATE = "Summarized report of code scan with {0}"
+FINDING_TYPE_TEMPLATE = "{0} code scan"
+BEST_PRACTICES_PHP = "https://aws.amazon.com/developer/language/php/"
+BEST_PRACTICES_OWASP = "https://owasp.org/www-project-top-ten/"
+report_url = "https://aws.amazon.com"
+
+def process_message(event):
+    """ Process Lambda Event """
+    if event['messageType'] == 'CodeScanReport':
+        account_id = boto3.client('sts').get_caller_identity().get('Account')
+        region = os.environ['AWS_REGION']
+        created_at = event['createdAt']
+        source_repository = event['source_repository']
+        source_branch = event['source_branch']
+        source_commitid = event['source_commitid']
+        build_id = event['build_id']
+        report_type = event['reportType']
+        product_name = event['productName']
+        company_name = event['companyName']
+        finding_type = FINDING_TYPE_TEMPLATE.format(report_type)
+        generator_id = f"{report_type.lower()}-{source_repository}-{source_branch}"
+        ### upload to S3 bucket
+        s3 = boto3.client('s3')
+        s3bucket = os.environ['BUCKET_NAME']
+        key = f"reports/{event['reportType']}/{build_id}-{created_at}.json"
+        s3.put_object(Bucket=s3bucket, Body=json.dumps(event), Key=key, ServerSideEncryption='aws:kms')
+        report_url = f"https://s3.console.aws.amazon.com/s3/object/{s3bucket}/{key}?region={region}"
+                
+        ### OWASP SCA scanning report parsing
+        if event['reportType'] == 'OWASP-Dependency-Check':
+            severity = 50
+            FINDING_TITLE = "OWASP Dependecy Check Analysis"
+            dep_pkgs = len(event['report']['dependencies'])
+            for i in range(dep_pkgs):
+                if "packages" in event['report']['dependencies'][i]:
+                    confidence = event['report']['dependencies'][i]['packages'][0]['confidence']
+                    url = event['report']['dependencies'][i]['packages'][0]['url']
+                    finding_id = f"{i}-{report_type.lower()}-{build_id}"
+                    finding_description = f"Package: {event['report']['dependencies'][i]['packages'][0]['id']}, \nConfidence: {confidence}, \nURL: {url}"
+                    created_at = datetime.now(timezone.utc).isoformat()
+                    ### find the vulnerability severity level
+                    if confidence == "HIGHEST":
+                        normalized_severity = 80
+                    else:
+                        normalized_severity = 50
+                    securityhub.import_finding_to_sh(i, account_id, region, created_at, source_repository, source_branch, source_commitid, build_id, report_url, finding_id, generator_id, normalized_severity, severity, finding_type, FINDING_TITLE, finding_description, BEST_PRACTICES_OWASP, product_name, company_name)
+
+        ### PHPStan SAST scanning report parsing
+        if event['reportType'] == 'PHPStan':
+            severity = 50
+            FINDING_TITLE = "PHPStan StaticCode Analysis"
+            report_count = event['report']['totals']['file_errors']
+            for i in range(report_count):
+                for filename in event['report']['files']:
+                    finding_id = f"{i}-{report_type.lower()}-{build_id}"
+                    finding_description = f"Message: {event['report']['files'][filename]['messages'][0]['message']}, \nfile: {filename}, line: {event['report']['files'][filename]['messages'][0]['line']}"
+                    created_at = datetime.now(timezone.utc).isoformat()
+                    normalized_severity = 60                   
+                    ### find the vulnerability severity level
+                    is_ignorable = f"{event['report']['files'][filename]['messages'][0]['ignorable']}"
+                    if is_ignorable == "true":
+                        normalized_severity = 30
+                    else:
+                        normalized_severity = 60
+                    ### Calling Securityhub function to post the findings
+                    securityhub.import_finding_to_sh(i, account_id, region, created_at, source_repository, source_branch, source_commitid, build_id, report_url, finding_id, generator_id, normalized_severity, severity, finding_type, FINDING_TITLE, finding_description, BEST_PRACTICES_OWASP, product_name, company_name)
+        
+        ### SonarQube SAST scanning report parsing
+        elif event['reportType'] == 'SONAR-QUBE':           
+            severity = 50
+            FINDING_TITLE = "SonarQube StaticCode Analysis"         
+            report_count = event['report']['total']
+            for i in range(report_count):
+                finding_id = f"{i}-{report_type.lower()}-{source_repository}-{source_branch}-{build_id}"
+                finding_description = f"{event['report']['issues'][i]['type']}-{event['report']['issues'][i]['message']}-{i}, component: {event['report']['issues'][i]['component']}"
+                created_at = datetime.now(timezone.utc).isoformat()
+                report_severity = event['report']['issues'][i]['severity']
+                ### find the vulnerability severity level
+                if report_severity == 'MAJOR':
+                    normalized_severity = 70
+                elif report_severity == 'BLOCKER':
+                    normalized_severity = 90
+                elif report_severity == 'CRITICAL':
+                    normalized_severity = 90
+                else:
+                    normalized_severity= 20
+                ### Calling Securityhub function to post the findings
+                    securityhub.import_finding_to_sh(i, account_id, region, created_at, source_repository, source_branch, source_commitid, build_id, report_url, finding_id, generator_id, normalized_severity, severity, finding_type, FINDING_TITLE, finding_description, BEST_PRACTICES_OWASP, product_name, company_name)
+        
+        ### OWASP Zap SAST scanning report parsing
+        elif event['reportType'] == 'OWASP-Zap':  
+            severity = 50
+            FINDING_TITLE = "OWASP ZAP DynamicCode Analysis"
+            alert_ct = event['report']['site'][0]['alerts']
+            alert_count = len(alert_ct)
+            for alertno in range(alert_count):
+                risk_desc = event['report']['site'][0]['alerts'][alertno]['riskdesc']
+                riskletters = risk_desc[0:3]
+                ### find the vulnerability severity level
+                if riskletters == 'Hig':
+                    normalized_severity = 70
+                elif riskletters == 'Med':
+                    normalized_severity = 60
+                elif riskletters == 'Low' or riskletters == 'Inf':  
+                    normalized_severity = 30
+                else:
+                    normalized_severity = 90                                       
+                instances = len(event['report']['site'][0]['alerts'][alertno]['instances'])
+                finding_description = f"{alertno}-Vulerability:{event['report']['site'][0]['alerts'][alertno]['alert']}-Total occurances of this issue:{instances}"
+                finding_id = f"{alertno}-{report_type.lower()}-{build_id}"
+                created_at = datetime.now(timezone.utc).isoformat()
+                ### Calling Securityhub function to post the findings
+                securityhub.import_finding_to_sh(alertno, account_id, region, created_at, source_repository, source_branch, source_commitid, build_id, report_url, finding_id, generator_id, normalized_severity, severity, finding_type, FINDING_TITLE, finding_description, BEST_PRACTICES_OWASP, product_name, company_name)
+        else:
+            print("Invalid report type was provided")                
+    else:
+        logger.error("Report type not supported:")
+
+def lambda_handler(event, context):
+    """ Lambda entrypoint """
+    try:
+        logger.info("Starting function")
+        return process_message(event)
+    except Exception as error:
+        logger.error("Error {}".format(error))
+        raise
+
+```
+
+The following is the content of `securityhub.py` file
+
+```python
+import sys
+import logging
+sys.path.insert(0, "external")
+import boto3
+
+logger = logging.getLogger(__name__)
+
+securityhub = boto3.client('securityhub')
+
+# This function import agregated report findings to securityhub 
+def import_finding_to_sh(count: int, account_id: str, region: str, created_at: str, source_repository: str,
+    source_branch: str, source_commitid: str, build_id: str, report_url: str, finding_id: str, generator_id: str,
+                         normalized_severity: str, severity: str, finding_type: str, finding_title: str, finding_description: str, best_practices_cfn: str, product_name: str, company_name: str): 
+    print("called securityhub.py..................")
+    new_findings = []
+    new_findings.append({
+        "SchemaVersion": "2018-10-08",
+        "Id": finding_id,
+        "ProductArn": "arn:aws:securityhub:{0}:{1}:product/{1}/default".format(region, account_id),
+        "GeneratorId": generator_id,
+        "AwsAccountId": account_id,
+        "ProductName": product_name,
+        "CompanyName": company_name,
+        "Types": [
+            "Software and Configuration Checks/AWS Security Best Practices/{0}".format(
+                finding_type)
+        ],
+        "CreatedAt": created_at,
+        "UpdatedAt": created_at,
+        "Severity": {
+            "Normalized": normalized_severity,
+        },
+        "Title":  f"{count}-{finding_title}",
+        "Description": f"{finding_description}",
+        'Remediation': {
+            'Recommendation': {
+                'Text': 'For directions on PHP AWS Best practices, please click this link',
+                'Url': best_practices_cfn
+            }
+        },
+        'SourceUrl': report_url,
+        'Resources': [
+            {
+                'Id': build_id,
+                'Type': "CodeBuild",
+                'Partition': "aws",
+                'Region': region
+            }
+        ],
+    })
+    ### post the security vulnerability findings to AWS SecurityHub
+    response = securityhub.batch_import_findings(Findings=new_findings)
+    if response['FailedCount'] > 0:
+        logger.error("Error importing finding: " + response)
+        raise Exception("Failed to import finding: {}".format(response['FailedCount']))
+```
+
+**Step 6:** Go over to **Configuration** and then **Environment Variables** and add a new variable with the key `BUCKET_NAME` and value set to the S3 bucket you choose to store your scan logs to. See the image below for reference.
+
+![](assets/Create-function-Lambda-5.png)
+
+**Step 7:** Finally, Deploy the function
 
 AWS EKS Setup
 
