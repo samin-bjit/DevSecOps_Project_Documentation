@@ -670,7 +670,81 @@ def import_finding_to_sh(count: int, account_id: str, region: str, created_at: s
 
 **Step 7:** Finally, Deploy the function
 
+
+# Monitoring with Prometheus and Grafana
+
+**Step 1:** Install `Helm3` in the system
+
+```bash
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+```
+
+**Step 2:** Next, install the `prometheus-community/kube-prometheus-stack` helm chart by running the following command(Assuming you have `kubectl` and kubeconfig configured). This will install a complete monitoring stack that includes `Prometheus`, `Grafana`, `Alertmanager`, `Node Exporter`, `Kube State Metrics` and `Prometheus Operator`.
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n prometheus --create-namespace
+```
+
+**Step 3:** Afterwards, check all the monitoring pods are up and running.
+
+```bash
+kubectl get pods -n prometheus
+```
+
+**Step 5:** Now by default the services that serves as the endpoint to the tools are defined as `ClusterIP` services. If we wnat to access them we need to perform port forwarding in order to access them.
+
+```bash
+nohup kubectl port-forward -n prometheus svc/kube-prometheus-stack-prometheus 85:9090 --address 0.0.0.0 &>/dev/null &
+nohup kubectl port-forward -n prometheus svc/kube-prometheus-stack-grafana 86:80 --address 0.0.0.0 &>/dev/null &
+nohup kubectl port-forward -n prometheus svc/kube-prometheus-stack-alertmanager 87:9093 --address 0.0.0.0 &>/dev/null &
+```
+**Step 6:** If the commands in the above step executed properly, we can view `Prometheus` at ['http://localhost:85'](http://localhost:85), `Grafana` at ['http://localhost:86'](http://localhost:86) and `AlertManager` at ['http://localhost:87'](http://localhost:87).
+
+
+**Step 7:** Once all the pods are ready and running without any errors and the services are accessible, we can start applying our prometheus configurations. Go to the `prometheus` folder and apply each configurations.
+
+```bash
+kubectl apply -f PrometheusRule.yaml
+kubectl apply -f AlertmanagerSecret.yaml
+```
+
+**Step 8:** Finally, perform a restart on the prometheus and alertmanager instances so that they get the updated configuration quickly.
+
+```bash
+kubectl -n prometheus rollout restart statefulset prometheus-kube-prometheus-stack-prometheus alertmanager-kube-prometheus-stack-alertmanager
+```
+
+# Autoscaling with metrics server
+
+**Step 1:** Since we have defined a `HorizontalPodAutoscaler` for all of our deployments, it needs a metrics API endpoint to scale up/down depending on the metrics. We need to install the `metrics-server` in the same namespace as our deployments. Run the command below to install the `metrics-server` using helm.
+
+```bash
+helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+helm install metrics-server metrics-server/metrics-server -n prometheus
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 AWS EKS Setup
+
+
 
 Configure the following in the machine you are going to access the cluster:  
 
