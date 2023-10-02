@@ -216,42 +216,45 @@ Assuming you have already installed and setup `terraform`, `aws-cli` & `kubectl`
 **Step 1:** Clone the terraform code repo
 
 ```bash
-git clone <terraform-public repo>
+git clone https://github.com/samin-bjit/AWS_DevSecOps_Infra_Monitor_Configs.git
 ```
+**Step 2:** Go to `terraform` directory and open and edit `variables.tf` file. Change the region to your current one.
 
-**Step 2:**  Go to the root directory and run the following command
+**Step 3:** Next, run the following command to intiate the backend.
 
 ```bash
 terraform init
 ```
 
-**Step 3:** Next, run the following command to generate a plan before provisioning
+**Step 4:** Next, run the following command to generate a plan before provisioning
 
 ```bash
 terraform plan
 ```
 
-**Step 4:** Thoroughly check the plan and run the following command to apply and start the provisioning process.
+**Step 5:** Thoroughly check the plan and run the following command to apply and start the provisioning process.
 
 ```bash
 terraform apply -auto-approve
 ```
 
-**Step 5:** After provisioning is completed. you should see the cluster name and region. Now, we need to get the `kubeconfig` file to communicate with the EKS control-plane. We can do so with the help of `aws-cli`. Run the following command to update the kubeconfig file.
+**Step 6:** After provisioning is completed. you should see the cluster name and region. Now, we need to get the `kubeconfig` file to communicate with the EKS control-plane. We can do so with the help of `aws-cli`. Run the following command to update the kubeconfig file.
 
 ```bash
 aws eks update-kubeconfig --name <eks-cluster-name> --region <aws-region-name>
 ```
 
-**Step 6:** Check if the `kubectl` can communicate with the cluster by running the following coommand:
+**Step 7:** Check if the `kubectl` can communicate with the cluster by running the following coommand:
 
 ```bash
 kubectl cluster-info
 ```
 
-**Step 7:** We can check cluster is functioning properly by going to the `AWS Console` `>` `Elastic Kuberntetes Service` `>` `Clusters`.
+**Step 8:** We can check cluster is functioning properly by going to the `AWS Console` `>` `Elastic Kuberntetes Service` `>` `Clusters`.
 
 ![vaccination-system-eks-Clusters-EKS.png](assets/vaccination-system-eks-Clusters-EKS.png)
+
+**Step 9:** Head over to `RDS` > `Databases` and there should be a RDS instance with the name `vaccination-rds`.
 
 # PHPStan OWASP Dependency-Check & OWASP ZAP integration
 
