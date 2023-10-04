@@ -1,3 +1,8 @@
+---
+title: DevSecOps
+layout: home
+---
+
 ## Security Tools
 
 ### PHPStan
