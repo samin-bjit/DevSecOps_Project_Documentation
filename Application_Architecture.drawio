@@ -1,0 +1,46 @@
+<mxfile host="app.diagrams.net" modified="2023-10-04T08:38:29.768Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36" etag="nFnkgzLna4qktVKBgufe" version="22.0.0" type="device">
+  <diagram name="Page-1" id="EuK1SUDGDq73U-zgULp4">
+    <mxGraphModel dx="898" dy="535" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ZcB99bAIg6Paqe7TpS8--14" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;sketch=1;curveFitting=1;jiggle=2;" edge="1" parent="1" source="ZcB99bAIg6Paqe7TpS8--1" target="ZcB99bAIg6Paqe7TpS8--5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZcB99bAIg6Paqe7TpS8--1" value="&lt;font data-font-src=&quot;https://virgil.excalidraw.com/Virgil.woff2&quot; face=&quot;Virgil&quot;&gt;Frontend&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;glass=0;shadow=0;fillColor=#B3FF66;" vertex="1" parent="1">
+          <mxGeometry x="140" y="200" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ZcB99bAIg6Paqe7TpS8--3" value="&lt;font data-font-src=&quot;https://virgil.excalidraw.com/Virgil.woff2&quot; face=&quot;Virgil&quot;&gt;Appointment&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;glass=0;shadow=0;fillColor=#0000FF;" vertex="1" parent="1">
+          <mxGeometry x="480" y="290" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ZcB99bAIg6Paqe7TpS8--4" value="&lt;font data-font-src=&quot;https://virgil.excalidraw.com/Virgil.woff2&quot; face=&quot;Virgil&quot;&gt;Registration&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;glass=0;shadow=0;fillColor=#0000FF;" vertex="1" parent="1">
+          <mxGeometry x="480" y="120" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ZcB99bAIg6Paqe7TpS8--13" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;sketch=1;curveFitting=1;jiggle=2;shadow=0;" edge="1" parent="1" source="ZcB99bAIg6Paqe7TpS8--5" target="ZcB99bAIg6Paqe7TpS8--3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZcB99bAIg6Paqe7TpS8--5" value="&lt;font data-font-src=&quot;https://virgil.excalidraw.com/Virgil.woff2&quot; face=&quot;Virgil&quot;&gt;Auth&lt;br&gt;(API Server)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;glass=0;shadow=0;fillColor=#FF8000;sketch=1;curveFitting=1;jiggle=2;" vertex="1" parent="1">
+          <mxGeometry x="310" y="200" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ZcB99bAIg6Paqe7TpS8--11" style="orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0.002;entryY=0.929;entryDx=0;entryDy=0;sketch=1;curveFitting=1;jiggle=2;entryPerimeter=0;rounded=0;" edge="1" parent="1" source="ZcB99bAIg6Paqe7TpS8--5" target="ZcB99bAIg6Paqe7TpS8--4">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="250" y="240" as="sourcePoint" />
+            <mxPoint x="304" y="240" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ZcB99bAIg6Paqe7TpS8--17" value="DB" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;sketch=1;curveFitting=1;jiggle=2;fillColor=#00994D;fontFamily=Virgil;fontSource=https%3A%2F%2Fvirgil.excalidraw.com%2FVirgil.woff2;" vertex="1" parent="1">
+          <mxGeometry x="670" y="110" width="60" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ZcB99bAIg6Paqe7TpS8--18" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;sketch=1;curveFitting=1;jiggle=2;startArrow=classic;startFill=1;" edge="1" parent="1" source="ZcB99bAIg6Paqe7TpS8--4" target="ZcB99bAIg6Paqe7TpS8--17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZcB99bAIg6Paqe7TpS8--19" value="DB" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;sketch=1;curveFitting=1;jiggle=2;fillColor=#00994D;fontFamily=Virgil;fontSource=https%3A%2F%2Fvirgil.excalidraw.com%2FVirgil.woff2;" vertex="1" parent="1">
+          <mxGeometry x="670" y="280" width="60" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ZcB99bAIg6Paqe7TpS8--20" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;sketch=1;curveFitting=1;jiggle=2;startArrow=classic;startFill=1;" edge="1" parent="1" source="ZcB99bAIg6Paqe7TpS8--3" target="ZcB99bAIg6Paqe7TpS8--19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
